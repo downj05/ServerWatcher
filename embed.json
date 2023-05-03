@@ -1,0 +1,53 @@
+{
+    "content": "",
+    "embeds": [
+        {
+            "title": "Player Joined",
+            "description": "**Dr.Plassy** has joined the server",
+            "color": 1498786,
+            "fields": [
+                {
+                    "name": "Server:",
+                    "value": "Urban RP | Serious Roleplay | Serious RP, Custom Map, Daily updates",
+                    "inline": true
+                },
+                {
+                    "name": "Players",
+                    "value": "0/48",
+                    "inline": true
+                }
+            ],
+            "footer": {
+                "text": "Bot Uptime: 3 hours"
+            },
+            "thumbnail": {
+                "url": "https://i.imgur.com/NW5cvY4.png"
+            }
+        },
+        {
+            "title": "Player Left",
+            "description": "**Dr.Plassy** has left the server\n*Total playtime: 3 hours 22 minutes*\n",
+            "color": 14560790,
+            "fields": [
+                {
+                    "name": "Server:",
+                    "value": "Urban RP | Serious Roleplay | Serious RP, Custom Map, Daily updates",
+                    "inline": true
+                },
+                {
+                    "name": "Players",
+                    "value": "0/48",
+                    "inline": true
+                }
+            ],
+            "thumbnail": {
+                "url": "https://i.imgur.com/NW5cvY4.png"
+            },
+            "footer": {
+                "text": "Bot Uptime: 3 hours, 22 minutes"
+            }
+        }
+    ],
+    "components": [],
+    "username": "Player Alert"
+}

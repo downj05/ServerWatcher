@@ -1,13 +1,15 @@
 import a2s
 import re
 import human_readable as hr
+import webhook
 from datetime import datetime
 import json
-from time import sleep
+from time import sleep, time
 from colorama import Fore, Style
 import os
 import argparse
 
+start_time = time()
 
 parser = argparse.ArgumentParser(prog='cyrillic',
 	description='Grab info about the server, log players and alert on certain player joins/leaves.',
@@ -16,7 +18,8 @@ parser = argparse.ArgumentParser(prog='cyrillic',
 
 LOGS_DIR = 'logs'
 
-parser.add_argument('-m', '--monitor', action='store_true', help='enable auto monitoring, also logs to directory)')
+parser.add_argument('-m', '--monitor', action='store_true', help='enable auto monitoring')
+parser.add_argument('-l', '--log', action='store_true', help='enable logging to logs directory')
 parser.add_argument('-a', '--address', type=str, default='145.239.131.158:27062',
 					help='address of the Steam server for extracting player names, in format IP:port')
 parser.add_argument('-d', '--delay', type=int, default='30',
@@ -28,6 +31,10 @@ server_address, server_port = args.address.split(':')
 server_port = int(server_port)
 address = (server_address, server_port)
 
+# Get server icon url
+server_rules = a2s.rules(address=address)
+icon_url = server_rules['Browser_Icon']
+
 # get the absolute path of the directory containing the script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 LOGS_DIR = os.path.join(script_dir, LOGS_DIR)
@@ -37,6 +44,14 @@ if os.path.isfile(os.path.join(script_dir, 'usernames.txt')):
 	with open(os.path.join(script_dir, 'usernames.txt'), 'r') as file:
 		# Read all lines from the file, ignoring those starting with #
 		watchlist = [line.strip() for line in file if not line.startswith('#')]
+
+# get webhook from secrets
+if os.path.isfile(os.path.join(script_dir, 'secrets.txt')):
+	with open(os.path.join(script_dir, 'secrets.txt'), 'r') as f:
+		webhook_url = f.read().strip()
+else:
+	print('No secrets.txt file found, please create one and put your webhook url in it.')
+	exit()
 
 def write_log(players):
 	# Create the 'logs' directory if it doesn't exist
@@ -104,16 +119,19 @@ def _join_leave_message(player: a2s.Player, join: bool, print_message=False):
 		print(s1+s2)
 	return f"{s1}{s2}"
 
-def join_message(player: a2s.Player):
+def join_message(player: a2s.Player, server_info: a2s.SourceInfo):
+	webhook.join(webhook_url=webhook_url, player=player, server_info=server_info, server_icon=icon_url, uptime=int(time()-start_time))
 	return _join_leave_message(player=player, join=True)
 
 def leave_message(player: a2s.Player):
+	webhook.leave(webhook_url=webhook_url, player=player, server_info=server_info, server_icon=icon_url, uptime=int(time()-start_time))
 	return _join_leave_message(player=player, join=False)
 
 def print_info(address=address):
 	info = a2s.info(address)
 	print(Fore.LIGHTCYAN_EX + info.server_name + Fore.LIGHTBLACK_EX + ' | ' + Fore.LIGHTBLUE_EX + match_terminal_color(info.game)
-		+ Fore.LIGHTBLACK_EX + f" ({info.player_count}/{info.max_players})")
+		+ Fore.LIGHTBLACK_EX + f" ({info.player_count}/{info.max_players}){Style.RESET_ALL}")
+	return info
 
 def get_players(address=address):
 	players = a2s.players(address)
@@ -133,8 +151,15 @@ player_cache = []
 
 while True:
 	os.system('cls' if os.name == 'nt' else 'clear')
-	print_info()
+	server_info = print_info()
 	players = get_players()
+
+	if len(player_cache) == 0:
+		fake_player = a2s.Player()
+		fake_player.name = '[Civilian]IAmNotReal'
+		fake_player.duration = 12*60+33
+		players.append(fake_player)
+
 	action_messages = []
 	for p in players:
 		name_color = Fore.LIGHTMAGENTA_EX
@@ -147,7 +172,7 @@ while True:
 			# If player not in player_cache  
 			if not player_in_list(p, player_cache):
 				# If not in player_cache, print that the player joined
-				action_messages.append(join_message(p))
+				action_messages.append(join_message(player=p, server_info=server_info))
 				# Put player in player_cache
 				player_cache.append(p)
 		
@@ -164,7 +189,11 @@ while True:
 			# Remove player from player_cache
 			player_cache.remove(p)
 	
-	write_log(players)
+	# Log players if enabled
+	if args.log:
+		write_log(players)
+	
+	# Print all join/leave messages
 	for m in action_messages:
 		print(m)
 	sleep(args.delay)
