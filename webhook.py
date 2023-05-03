@@ -42,6 +42,7 @@ def leave(webhook_url: str, player: a2s.Player, server_info: a2s.SourceInfo, ser
     leave_embed = baseEmbed(server_info=server_info, server_icon=server_icon, uptime=uptime)
     leave_embed.set_title(title='Player Left')
     leave_embed.set_color(color=14560790)
+    print(f"Webhook player: {player}")
     leave_embed.set_description(f"**{username}** has left the server\n*Total Playtime: {hr.time_delta(int(player.duration))}*\nRole: **{role}**")
     webhook.add_embed(leave_embed)
     response = webhook.execute()

@@ -25,15 +25,13 @@ parser.add_argument('-a', '--address', type=str, default='145.239.131.158:27062'
 					help='address of the Steam server for extracting player names, in format IP:port')
 parser.add_argument('-d', '--delay', type=int, default='30',
 			help='delay between doing new scans, in seconds, used for monitoring')
+parser.add_argument('-j', '--join', action='store_true', help='send webhook on all joins/leaves')
 args = parser.parse_args()
 
 # Extract server address and port from command line arguments
 server_address, server_port = args.address.split(':')
 server_port = int(server_port)
 address = (server_address, server_port)
-
-
-
 
 # get the absolute path of the directory containing the script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -119,22 +117,27 @@ def _join_leave_message(player: a2s.Player, join: bool, print_message=False):
 		print(s1+s2)
 	return f"{s1}{s2}"
 
-def join_message(player: a2s.Player, server_info: a2s.SourceInfo, webhook=False):
-	webhook.join(webhook_url=webhook_url, player=player, server_info=server_info, server_icon=icon_url, uptime=int(time()-start_time))
+def join_message(player: a2s.Player, server_info: a2s.SourceInfo, do_webhook=False):
+	if do_webhook:
+		webhook.join(webhook_url=webhook_url, player=player, server_info=server_info, server_icon=icon_url, uptime=int(time()-start_time))
 	return _join_leave_message(player=player, join=True)
 
-def leave_message(player: a2s.Player, server_info: a2s.SourceInfo, webhook=False):
-	webhook.leave(webhook_url=webhook_url, player=player, server_info=server_info, server_icon=icon_url, uptime=int(time()-start_time))
+def leave_message(player: a2s.Player, server_info: a2s.SourceInfo, do_webhook=False):
+	if do_webhook:
+		webhook.leave(webhook_url=webhook_url, player=player, server_info=server_info, server_icon=icon_url, uptime=int(time()-start_time))
 	return _join_leave_message(player=player, join=False)
 
-def print_info(address=address):
-	info = a2s.info(address)
+def print_info(info: a2s.SourceInfo):
 	print(Fore.LIGHTCYAN_EX + info.server_name + Fore.LIGHTBLACK_EX + ' | ' + Fore.LIGHTBLUE_EX + match_terminal_color(info.game)
 		+ Fore.LIGHTBLACK_EX + f" ({info.player_count}/{info.max_players}){Style.RESET_ALL}")
-	return info
 
 def get_players(address=address):
-	players = a2s.players(address)
+	try:
+		players = a2s.players(address)
+	except:
+		print(Fore.RED + "Server timed out. Retrying in 5 seconds..." + Fore.RESET)
+		sleep(5)
+		players = a2s.players(address)
 	return players
 
 def player_in_list(player: a2s.Player, list: list):
@@ -147,21 +150,23 @@ def player_in_list(player: a2s.Player, list: list):
 # Lets us see if a monitored username has joined
 # Rather than printing their join message
 # Also used for storing players we are aware of, for monitoring change
-player_cache = []
+player_cache = get_players()
 
 while True:
-	os.system('cls' if os.name == 'nt' else 'clear')
+	
 	try:
 		# Get server icon url
 		server_rules = a2s.rules(address=address)
 		icon_url = server_rules['Browser_Icon']
-		server_info = print_info()
+		server_info = a2s.info(address=address)
 	except socket.timeout or TimeoutError:
 		print(Fore.RED + "Server timed out. Retrying in 5 seconds..." + Fore.RESET)
 		sleep(5)
 		continue
 	players = get_players()
 
+	os.system('cls' if os.name == 'nt' else 'clear')
+	print_info(server_info)
 	action_messages = []
 	for p in players:
 		name_color = Fore.LIGHTMAGENTA_EX
@@ -174,7 +179,12 @@ while True:
 			# If player not in player_cache  
 			if not player_in_list(p, player_cache):
 				# If not in player_cache, print that the player joined
-				action_messages.append(join_message(player=p, server_info=server_info, webhook=p.name in watchlist))
+				try:
+					print(p.duration)
+					action_messages.append(join_message(player=p, server_info=server_info, do_webhook=p.name in watchlist or args.join))
+				except:
+					# Error message if join message doesnt work
+					print(Fore.RED + "Error sending join message" + Fore.RESET)
 				# Put player in player_cache
 				player_cache.append(p)
 		
@@ -187,7 +197,11 @@ while True:
 		# If a watched player has left
 		if not player_in_list(p, players):
 			# Print leave message
-			action_messages.append(leave_message(player=p, server_info=server_info, webhook=p.name in watchlist))
+			try:
+				action_messages.append(leave_message(player=p, server_info=server_info, do_webhook=p.name in watchlist or args.join))
+			except:
+				# Error message if leave message doesnt work
+				print(Fore.RED + "Error sending leave message" + Fore.RESET)
 			# Remove player from player_cache
 			player_cache.remove(p)
 	
