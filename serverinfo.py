@@ -119,11 +119,11 @@ def _join_leave_message(player: a2s.Player, join: bool, print_message=False):
 		print(s1+s2)
 	return f"{s1}{s2}"
 
-def join_message(player: a2s.Player, server_info: a2s.SourceInfo):
+def join_message(player: a2s.Player, server_info: a2s.SourceInfo, webhook=False):
 	webhook.join(webhook_url=webhook_url, player=player, server_info=server_info, server_icon=icon_url, uptime=int(time()-start_time))
 	return _join_leave_message(player=player, join=True)
 
-def leave_message(player: a2s.Player):
+def leave_message(player: a2s.Player, server_info: a2s.SourceInfo, webhook=False):
 	webhook.leave(webhook_url=webhook_url, player=player, server_info=server_info, server_icon=icon_url, uptime=int(time()-start_time))
 	return _join_leave_message(player=player, join=False)
 
@@ -154,12 +154,6 @@ while True:
 	server_info = print_info()
 	players = get_players()
 
-	if len(player_cache) == 0:
-		fake_player = a2s.Player()
-		fake_player.name = '[Civilian]IAmNotReal'
-		fake_player.duration = 12*60+33
-		players.append(fake_player)
-
 	action_messages = []
 	for p in players:
 		name_color = Fore.LIGHTMAGENTA_EX
@@ -172,7 +166,7 @@ while True:
 			# If player not in player_cache  
 			if not player_in_list(p, player_cache):
 				# If not in player_cache, print that the player joined
-				action_messages.append(join_message(player=p, server_info=server_info))
+				action_messages.append(join_message(player=p, server_info=server_info, webhook=p.name in watchlist))
 				# Put player in player_cache
 				player_cache.append(p)
 		
@@ -185,7 +179,7 @@ while True:
 		# If a watched player has left
 		if not player_in_list(p, players):
 			# Print leave message
-			action_messages.append(leave_message(p))
+			action_messages.append(leave_message(player=p, server_info=server_info, webhook=p.name in watchlist))
 			# Remove player from player_cache
 			player_cache.remove(p)
 	
