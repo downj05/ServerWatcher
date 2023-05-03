@@ -7,6 +7,7 @@ import json
 from time import sleep, time
 from colorama import Fore, Style
 import os
+import socket
 import argparse
 
 start_time = time()
@@ -31,9 +32,8 @@ server_address, server_port = args.address.split(':')
 server_port = int(server_port)
 address = (server_address, server_port)
 
-# Get server icon url
-server_rules = a2s.rules(address=address)
-icon_url = server_rules['Browser_Icon']
+
+
 
 # get the absolute path of the directory containing the script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -151,7 +151,15 @@ player_cache = []
 
 while True:
 	os.system('cls' if os.name == 'nt' else 'clear')
-	server_info = print_info()
+	try:
+		# Get server icon url
+		server_rules = a2s.rules(address=address)
+		icon_url = server_rules['Browser_Icon']
+		server_info = print_info()
+	except socket.timeout or TimeoutError:
+		print(Fore.RED + "Server timed out. Retrying in 5 seconds..." + Fore.RESET)
+		sleep(5)
+		continue
 	players = get_players()
 
 	action_messages = []
